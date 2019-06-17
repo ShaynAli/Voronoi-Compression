@@ -1,0 +1,15 @@
+# IDE files
+.idea/
+.vs/
+.vscode/
+**/__pycache__/
+
+# Virtual environment
+venv/
+Lib/
+Scripts/
+pip-selfcheck.json
+pyvenv.cfg
+
+# Repository files
+images/
