@@ -12,4 +12,5 @@ pip-selfcheck.json
 pyvenv.cfg
 
 # Repository files
-images/
+*.png
+!.gitkeep

@@ -1,6 +1,6 @@
 def print_progress(iteration, total, prefix='', suffix='', decimals=1, bar_length=100):
     """
-    Modified from https://gist.github.com/aubricus/f91fb55dc6ba5557fbab06119420dd6a
+    Modified from https://gist.github.com/aubricus/f91fb55dc6ba5557fbab06119420dd6a, which was written by Aubrey Taylor
     """
     import sys
     str_format = "{0:." + str(decimals) + "f}"
@@ -14,3 +14,7 @@ def print_progress(iteration, total, prefix='', suffix='', decimals=1, bar_lengt
         sys.stdout.write('\n')
 
     sys.stdout.flush()
+
+
+def weighted_vector_average(vectors, weights):
+    return np.average(vectors, weights=weights, axis=0)
