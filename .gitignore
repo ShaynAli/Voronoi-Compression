@@ -14,3 +14,6 @@ pyvenv.cfg
 # Repository files
 *.png
 !.gitkeep
+
+# Install files
+vsa_compression.egg-info/
