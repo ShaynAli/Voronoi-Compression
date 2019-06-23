@@ -5,7 +5,7 @@ with open('requirements.txt', 'r+') as requirements_file:
 
 setup(
     name='vsa-compression',
-    version='0.1',
+    version='0.2',
     author='Shayaan Syed Ali',
     author_email='shayaan.syed.ali@gmail.com',
     install_requires=requirements,
