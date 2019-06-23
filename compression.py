@@ -1,12 +1,16 @@
 """ Compress an image using Voronoi cells """
 import numpy as np
-import scipy
+from scipy.spatial import Voronoi
+import matplotlib.pyplot as plt
+from matplotlib.pyplot import Figure
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import cv2
 from sortedcontainers import SortedSet
 from os import path
 import sys
-from itertools import product, chain, count
-import utils
+from itertools import product, chain, count, cycle
+from math import ceil
+from utils import *
 
 import pdb
 
@@ -15,40 +19,47 @@ raw_images_folder = path.join(script_folder, 'images', 'raw')
 compressed_images_folder = path.join(script_folder, 'images', 'compressed')
 
 
+def debug_print(value, enabled=False, *args, **kwargs):
+    if enabled:
+        print(value, *args, *kwargs)
+
+
 # region Compression
 
-def compress(raw_image_file, compressed_image_file, n_edges=10000, verbose=False):
-
-    def debug_print(value, enabled=verbose, *args, **kwargs):
-        if enabled:
-            print(value, *args, *kwargs)
+def compress(raw_image_file, compressed_image_file, verbose=False):
 
     image_data = cv2.imread(raw_image_file)
 
     if image_data is None or len(image_data) == 0:
         raise FileNotFoundError(f'Image {raw_image_file} was not found')
 
-    debug_print(f'Loading cell grid')
-    image_cell_grid(image_data, print_progress=verbose)
+    image_cell_grid(image_data, verbose=verbose)
 
     original_n_edges = len(Cell.edge_set)
+    n_edges = original_n_edges // 2
 
-    debug_print(f'Merging similar cells')
+    debug_print('Merging similar cells', enabled=verbose)  # TODO: Fix merging ValueError/KeyError issue
     while len(Cell.edge_set) > n_edges:
         Cell.merge_cells(*Cell.least_difference_edge())
-        if verbose:
-            utils.print_progress(original_n_edges - len(Cell.edge_set), original_n_edges - n_edges, bar_length=70)
+        print_progress(original_n_edges - len(Cell.edge_set) - 1, original_n_edges - n_edges, enabled=verbose)
+    print_progress(original_n_edges - n_edges, original_n_edges - n_edges, enabled=verbose)
 
-    cells = set()
-    print(f'Gathering reduced vertex set')
+    # TODO: Save compressed data in VSA file
+    # TODO: Break up functionality into a decompress function
+
+    cell_set = set()
+    debug_print(f'Gathering reduced vertex set', enabled=verbose)
     for first_cell, second_cell in Cell.edge_set:
-        cells.add(first_cell)
-        cells.add(second_cell)
-        utils.print_progress(len(cells), n_edges, bar_length=70)
-    utils.print_progress(n_edges, n_edges, bar_length=70)
+        cell_set.add(first_cell)
+        cell_set.add(second_cell)
+        print_progress(len(cell_set), n_edges)
+    print_progress(n_edges, n_edges)
+    cell_list = list(cell_set)
 
-    compressed_image = voronoi_fill(cells, print_progress=verbose)
+    debug_print(f'Rasterizing Voronoi diagram', enabled=verbose)
+    compressed_image = voronoi_fill(cell_list, image_data, verbose=verbose)
 
+    debug_print(f'Saving compressed image to {compressed_image_file}', enabled=verbose)
     cv2.imwrite(compressed_image_file, compressed_image)
 
 # endregion
@@ -96,8 +107,8 @@ class Cell:
 
         weights = [first_cell.weight, second_cell.weight]
 
-        colour = utils.weighted_vector_average([first_cell.colour, second_cell.colour], weights=weights)
-        position = utils.weighted_vector_average([first_cell.position, second_cell.position], weights=weights)
+        colour = weighted_vector_average([first_cell.colour, second_cell.colour], weights=weights)
+        position = weighted_vector_average([first_cell.position, second_cell.position], weights=weights)
         weight = sum(weights)
         neighbours = {*first_cell._neighbours, *second_cell._neighbours}
 
@@ -117,7 +128,10 @@ class Cell:
             Cell.add_edge(self, cell)
 
     def __repr__(self):
-        return f'cell(c={self._colour}, p={self.position}, w={self.weight})'
+        np.set_printoptions(precision=3)
+        representation = f'cell(c={self._colour}, p={self.position}, w={self.weight})'
+        np.set_printoptions(precision=None)
+        return representation
 
     @property
     def colour(self):
@@ -131,22 +145,8 @@ class Cell:
         return self._neighbours[0]
 
 
-def inbounds(row, col, max_row, max_col, min_row=0, min_col=0):
-    return min_row <= row < max_row and min_col <= col < max_col
-
-
-def grid_neighbour_indices(row, col, height, width):
-    offsets = [(0, -1), (-1, 0), (0, 1), (1, 0)]
-    return [(row + row_offset, col + col_offset) for row_offset, col_offset in offsets if
-            inbounds(row + row_offset, col + col_offset, height, width)]
-
-
-def grid_neighbours(grid, row, col):
-    indices = grid_neighbour_indices(row, col, len(grid), len(grid[0]))
-    return [grid[i][j] for i, j in indices]
-
-
-def image_cell_grid(image_data, print_progress=False):
+def image_cell_grid(image_data, verbose=False):
+    debug_print(f'Loading cell grid', enabled=verbose)
     height, width, colour_dimension = image_data.shape
     cells = [[Cell(colour=image_data[i, j], position=np.array([i, j], dtype=np.float64))
               for j in range(width)] for i in range(height)]
@@ -154,16 +154,80 @@ def image_cell_grid(image_data, print_progress=False):
         for j, cell in enumerate(row):
             for neighbour in grid_neighbours(cells, i, j):
                 Cell.add_edge(cell, neighbour)
-            if print_progress:
-                utils.print_progress(int(i * width + j) + 1, height * width, bar_length=70)
+            print_progress(i * width + j + 1, height * width, enabled=verbose)
     return cells
 
 
-def voronoi_fill(cells, print_progress=False):
+def voronoi_fill(cells, image_data, verbose=False):
+    # TODO: Add weighting
+    # TODO: Add gradient-edge relations (use gradient of original image/etc)
 
-    max_weight = max(cell.weight for cell in cells)
+    # Idea A:
+    # Divide the image into overlapping neighbourhoods, group cells by their membership in neighbourhoods, to find the
+    # closest cell for any pixel evaluate all cells in the neighborhood
 
-    raise NotImplementedError()
+    # Idea B:
+    # Sort the cells by their x coord in one list and their y coord in another list
+
+    # https://stackoverflow.com/questions/16024428/reference-algorithm-for-weighted-voronoi-diagrams
+    # https://stackoverflow.com/questions/53696900/render-voronoi-diagram-to-numpy-array
+
+    height, width, colour_dim = shape = image_data.shape
+
+    neighborhood_size = 10
+    neighborhoods_height = int(ceil(height / (neighborhood_size/2)) - 1)
+    neighborhoods_width = int(ceil(width / (neighborhood_size/2)) - 1)
+
+    cell_neighborhoods = [[set() for _ in range(neighborhoods_width)] for _ in range(neighborhoods_height)]
+
+    def nearby_neighborhood_indices(row, col, degree=1):
+        neighborhood_row = bound_to_range(int((row - neighborhood_size/4) / (neighborhood_size/2)),
+                                          minimum=0, maximum=neighborhoods_height)
+        neighborhood_col = bound_to_range(int((col - neighborhood_size/4) / (neighborhood_size/2)),
+                                          minimum=0, maximum=neighborhoods_width)
+
+        if degree == 0:
+            return [(neighborhood_row, neighborhood_col)]
+
+        offsets = [-degree, degree]
+        top_left, top_right, bottom_left, bottom_right = [(neighborhood_row + i, neighborhood_col + j)
+                                                          for i, j in product(offsets, offsets)]
+
+        top = zip(cycle([top_left[0]]), range(top_left[1], top_right[1], 2))
+        bottom = zip(cycle([bottom_left[0]]), range(bottom_left[1] + 1, bottom_right[1] + 1, 2))
+        left = zip(range(top_left[0] + 1, bottom_left[0] + 1, 2), cycle([top_left[1]]))
+        right = zip(range(top_right[0], bottom_right[0], 2), cycle([top_right[1]]))
+
+        return [(i, j) for i, j in chain(top, bottom, left, right) if inbounds(i, j, neighborhoods_height,
+                                                                               neighborhoods_width)]
+
+    def nearby_neighborhoods(row, col, degree=1):
+        return [cell_neighborhoods[i][j] for i, j in nearby_neighborhood_indices(row, col, degree=degree)]
+
+    # Populate neighborhoods
+    debug_print('Populating cell neighborhoods', enabled=verbose)
+    for i, cell in enumerate(cells):
+        for neighborhood in nearby_neighborhoods(*cell.position, degree=0) + \
+                            nearby_neighborhoods(*cell.position, degree=1):
+            neighborhood.add(cell)
+        print_progress(i + 1, len(cells), enabled=verbose)
+
+    def closest_cell(row, col):
+        neighborhood = nearby_neighborhoods(row, col, degree=1)
+        degree = count(2)
+        while len(neighborhood) == 0:
+            neighborhood = nearby_neighborhoods(row, col, degree=next(degree))
+        return min(chain(*neighborhood), key=lambda cell: np.linalg.norm(cell.position - np.array([row, col])))
+
+    filled = np.empty(shape)
+
+    debug_print('Populating Voronoi array', enabled=verbose)
+    for i in range(height):
+        for j in range(width):
+            filled[i, j] = closest_cell(i, j).colour
+            print_progress(i * width + j + 1, height * width, enabled=verbose)
+
+    return filled
 
 # endregion
 
@@ -188,5 +252,3 @@ if __name__ == '__main__':
     compressed_image = path.join(compressed_images_folder, compressed_image_name)
 
     compress(raw_image, compressed_image, verbose=True)
-
-    print(f'Saved compressed image to {compressed_image}')
