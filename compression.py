@@ -128,9 +128,7 @@ class Cell:
             Cell.add_edge(self, cell)
 
     def __repr__(self):
-        np.set_printoptions(precision=3)
-        representation = f'cell(c={self._colour}, p={self.position}, w={self.weight})'
-        np.set_printoptions(precision=None)
+        representation = f'cell(c={self._colour:}, p={self.position}, w={self.weight})'
         return representation
 
     @property
@@ -162,12 +160,8 @@ def voronoi_fill(cells, image_data, verbose=False):
     # TODO: Add weighting
     # TODO: Add gradient-edge relations (use gradient of original image/etc)
 
-    # Idea A:
     # Divide the image into overlapping neighbourhoods, group cells by their membership in neighbourhoods, to find the
     # closest cell for any pixel evaluate all cells in the neighborhood
-
-    # Idea B:
-    # Sort the cells by their x coord in one list and their y coord in another list
 
     # https://stackoverflow.com/questions/16024428/reference-algorithm-for-weighted-voronoi-diagrams
     # https://stackoverflow.com/questions/53696900/render-voronoi-diagram-to-numpy-array
@@ -204,11 +198,9 @@ def voronoi_fill(cells, image_data, verbose=False):
     def nearby_neighborhoods(row, col, degree=1):
         return [cell_neighborhoods[i][j] for i, j in nearby_neighborhood_indices(row, col, degree=degree)]
 
-    # Populate neighborhoods
     debug_print('Populating cell neighborhoods', enabled=verbose)
     for i, cell in enumerate(cells):
-        for neighborhood in nearby_neighborhoods(*cell.position, degree=0) + \
-                            nearby_neighborhoods(*cell.position, degree=1):
+        for neighborhood in nearby_neighborhoods(*cell.position, degree=1):
             neighborhood.add(cell)
         print_progress(i + 1, len(cells), enabled=verbose)
 
