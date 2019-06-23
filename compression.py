@@ -242,10 +242,10 @@ if __name__ == '__main__':
             sys.exit(1)
 
     except IndexError:
-        raw_image_name = input('Enter an image name: ') or 'bliss.png'
+        raw_image_name = input('Enter an image name: ')
         raw_image = path.join(raw_images_folder, raw_image_name)
         while not path.exists(raw_image):
-            raw_image_name = input('File not found, try another: ') or 'bliss.png'
+            raw_image_name = input('File not found, try another: ')
             raw_image = path.join(raw_images_folder, raw_image_name)
 
     compressed_image_name = raw_image_name
