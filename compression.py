@@ -17,6 +17,7 @@ import pdb
 script_folder, _ = path.split(path.abspath(__file__))
 raw_images_folder = path.join(script_folder, 'images', 'raw')
 compressed_images_folder = path.join(script_folder, 'images', 'compressed')
+decompressed_images_folder = path.join(script_folder, 'images', 'decompressed')
 
 
 def debug_print(value, enabled=False, *args, **kwargs):
@@ -38,11 +39,15 @@ def compress(raw_image_file, compressed_image_file, verbose=False):
     original_n_edges = len(Cell.edge_set)
     n_edges = original_n_edges // 2
 
-    debug_print('Merging similar cells', enabled=verbose)  # TODO: Fix merging ValueError/KeyError issue
+    # TODO: Fix merging ValueError/KeyError issue
+    # TODO: Make merging criteria more nuanced - currently colours bleed as compressed cells seem more similar to local
+    # cells as they are further compressed
+    debug_print('Merging similar cells', enabled=verbose)
     while len(Cell.edge_set) > n_edges:
         Cell.merge_cells(*Cell.least_difference_edge())
         print_progress(original_n_edges - len(Cell.edge_set) - 1, original_n_edges - n_edges, enabled=verbose)
     print_progress(original_n_edges - n_edges, original_n_edges - n_edges, enabled=verbose)
+
 
     # TODO: Save compressed data in VSA file
     # TODO: Break up functionality into a decompress function
@@ -207,7 +212,7 @@ def voronoi_fill(cells, image_data, verbose=False):
     def closest_cell(row, col):
         neighborhood = nearby_neighborhoods(row, col, degree=1)
         degree = count(2)
-        while len(neighborhood) == 0:
+        while not any(neighborhood):
             neighborhood = nearby_neighborhoods(row, col, degree=next(degree))
         return min(chain(*neighborhood), key=lambda cell: np.linalg.norm(cell.position - np.array([row, col])))
 
@@ -244,3 +249,9 @@ if __name__ == '__main__':
     compressed_image = path.join(compressed_images_folder, compressed_image_name)
 
     compress(raw_image, compressed_image, verbose=True)
+
+    # # TODO: Add back in when compression functionality is broken up
+    # decompressed_image_name = compressed_image_name
+    # decompressed_image = path.join(decompressed_images_folder, compressed_image_name)
+    #
+    # decompress(compressed_image, decompressed_image, verbose=True)
