@@ -8,6 +8,7 @@ import cv2
 from sortedcontainers import SortedSet
 from os import path
 import sys
+import pickle
 from itertools import product, chain, count, cycle
 from math import ceil
 from utils import *
@@ -46,7 +47,6 @@ def compress(raw_image_file, compressed_image_file, verbose=False):
     while len(Cell.edge_set) > n_edges:
         Cell.merge_cells(*Cell.least_difference_edge())
         print_progress(original_n_edges - len(Cell.edge_set) - 1, original_n_edges - n_edges, enabled=verbose)
-    print_progress(original_n_edges - n_edges, original_n_edges - n_edges, enabled=verbose)
 
 
     # TODO: Save compressed data in VSA file
@@ -61,6 +61,10 @@ def compress(raw_image_file, compressed_image_file, verbose=False):
     print_progress(n_edges, n_edges)
     cell_list = list(cell_set)
 
+    saved_cell = pickle.dumps(Cell)
+
+    pdb.set_trace()
+
     debug_print(f'Rasterizing Voronoi diagram', enabled=verbose)
     compressed_image = voronoi_fill(cell_list, image_data, verbose=verbose)
 
@@ -74,7 +78,7 @@ def compress(raw_image_file, compressed_image_file, verbose=False):
 
 class Cell:
 
-    edge_set = SortedSet(key=lambda cells: Cell.compare_colours(*cells))
+    edge_set = SortedSet(key=lambda cells: sum([cell.weight for cell in cells]) * Cell.compare_colours(*cells))
 
     @staticmethod
     def add_edge(first_cell, second_cell):
@@ -163,7 +167,7 @@ def image_cell_grid(image_data, verbose=False):
 
 def voronoi_fill(cells, image_data, verbose=False):
     # TODO: Add weighting
-    # TODO: Add gradient-edge relations (use gradient of original image/etc)
+    # TODO: Add gradient-edge relations (use gradient of original image/etc) - can be done through key of edge_set
 
     # Divide the image into overlapping neighbourhoods, group cells by their membership in neighbourhoods, to find the
     # closest cell for any pixel evaluate all cells in the neighborhood
