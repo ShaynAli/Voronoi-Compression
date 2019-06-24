@@ -49,7 +49,7 @@ def compress(raw_image_file, compressed_image_file, verbose=False):
         print_progress(original_n_edges - len(Cell.edge_set) - 1, original_n_edges - n_edges, enabled=verbose)
 
 
-    # TODO: Save compressed data in VSA file
+    # TODO: Save compressed data in VSA file - must come up with serialization scheme which saves space
     # TODO: Break up functionality into a decompress function
 
     cell_set = set()
