@@ -61,10 +61,6 @@ def compress(raw_image_file, compressed_image_file, verbose=False):
     print_progress(n_edges, n_edges)
     cell_list = list(cell_set)
 
-    saved_cell = pickle.dumps(Cell)
-
-    pdb.set_trace()
-
     debug_print(f'Rasterizing Voronoi diagram', enabled=verbose)
     compressed_image = voronoi_fill(cell_list, image_data, verbose=verbose)
 
