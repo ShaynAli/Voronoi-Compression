@@ -2,3 +2,5 @@ This work is licensed under the Creative Commons Attribution-NonCommercial 4.0 I
 visit http://creativecommons.org/licenses/by-nc/4.0/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 The license for this work is subject to change without notice.
+
+Email shayaan.syed.ali@gmail.com for licensing.
