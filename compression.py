@@ -46,8 +46,7 @@ def compress(raw_image_file, compressed_image_file, verbose=False):
     debug_print('Merging similar cells', enabled=verbose)
     while len(Cell.edge_set) > n_edges:
         Cell.merge_cells(*Cell.least_difference_edge())
-        print_progress(original_n_edges - len(Cell.edge_set) - 1, original_n_edges - n_edges, enabled=verbose)
-
+        print_progress(original_n_edges - len(Cell.edge_set), original_n_edges - n_edges, enabled=verbose)
 
     # TODO: Save compressed data in VSA file - must come up with serialization scheme which saves space
     # TODO: Break up functionality into a decompress function
@@ -147,6 +146,34 @@ class Cell:
     def least_difference_neighbour(self):
         return self._neighbours[0]
 
+    # region Aliases
+
+    @property
+    def c(self):
+        return self.colour
+
+    @c.setter
+    def c(self, colour):
+        self.colour = colour
+
+    @property
+    def p(self):
+        return self.position
+
+    @p.setter
+    def p(self, position):
+        self.position = position
+
+    @property
+    def w(self):
+        return self.weight
+
+    @w.setter
+    def w(self, weight):
+        self.weight = weight
+
+    # endregion
+
 
 def image_cell_grid(image_data, verbose=False):
     debug_print(f'Loading cell grid', enabled=verbose)
@@ -205,7 +232,9 @@ def voronoi_fill(cells, image_data, verbose=False):
 
     debug_print('Populating cell neighborhoods', enabled=verbose)
     for i, cell in enumerate(cells):
-        for neighborhood in nearby_neighborhoods(*cell.position, degree=1):
+        # TODO: The cell belongs to the deg 0 neighborhood and ONE of the deg 1 neighborhoods, fix this code accordingly
+        for neighborhood in nearby_neighborhoods(*cell.position, degree=0) + \
+                            nearby_neighborhoods(*cell.position, degree=1):
             neighborhood.add(cell)
         print_progress(i + 1, len(cells), enabled=verbose)
 
