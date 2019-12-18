@@ -44,8 +44,8 @@ def grid_neighbour_indices(row, col, height, width):
 
 
 def grid_neighbours(grid, row, col):
-    indices = grid_neighbour_indices(row, col, len(grid), len(grid[0]))
-    return [grid[i][j] for i, j in indices]
+    indices = grid_neighbour_indices(row, col, len(grid), len(grid[row]))
+    return (grid[i][j] for i, j in indices)
 
 
 def colour_distance(first_cell, second_cell):
