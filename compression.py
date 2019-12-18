@@ -1,19 +1,14 @@
 """ Compress an image using Voronoi cells """
-import numpy as np
-from scipy.spatial import Voronoi
-import matplotlib.pyplot as plt
-from matplotlib.pyplot import Figure
-from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+
 import cv2
 from sortedcontainers import SortedSet
-from os import path
-import sys
-import pickle
-from itertools import product, chain, count, cycle
-from math import ceil
+
 from utils import *
 
-import pdb
+from os import path
+from itertools import product, chain, count, cycle
+from math import ceil
+
 
 script_folder, _ = path.split(path.abspath(__file__))
 raw_images_folder = path.join(script_folder, 'images', 'raw')
@@ -35,33 +30,25 @@ def compress(raw_image_file, compressed_image_file, verbose=False):
     if image_data is None or len(image_data) == 0:
         raise FileNotFoundError(f'Image {raw_image_file} was not found')
 
-    image_cell_grid(image_data, verbose=verbose)
+    graph = image_cell_grid(image_data, verbose=verbose)
 
-    original_n_edges = len(Cell.edge_set)
-    n_edges = original_n_edges // 2
+    original_n_edges = len(graph.edge_set)
+    n_edges = original_n_edges // 2  # TODO: Parameter-ize
 
     # TODO: Fix merging ValueError/KeyError issue
     # TODO: Make merging criteria more nuanced - currently colours bleed as compressed cells seem more similar to local
-    # cells as they are further compressed
+    #   cells as they are further compressed
     debug_print('Merging similar cells', enabled=verbose)
-    while len(Cell.edge_set) > n_edges:
-        Cell.merge_cells(*Cell.least_difference_edge())
-        print_progress(original_n_edges - len(Cell.edge_set), original_n_edges - n_edges, enabled=verbose)
+    while len(graph.edge_set) > n_edges:
+        breakpoint()
+        graph.merge_cells(*graph.least_difference_edge())
+        print_progress(original_n_edges - len(graph.edge_set), original_n_edges - n_edges, enabled=verbose)
 
     # TODO: Save compressed data in VSA file - must come up with serialization scheme which saves space
     # TODO: Break up functionality into a decompress function
 
-    cell_set = set()
-    debug_print(f'Gathering reduced vertex set', enabled=verbose)
-    for first_cell, second_cell in Cell.edge_set:
-        cell_set.add(first_cell)
-        cell_set.add(second_cell)
-        print_progress(len(cell_set), n_edges)
-    print_progress(n_edges, n_edges)
-    cell_list = list(cell_set)
-
     debug_print(f'Rasterizing Voronoi diagram', enabled=verbose)
-    compressed_image = voronoi_fill(cell_list, image_data, verbose=verbose)
+    compressed_image = voronoi_fill(graph, image_data, verbose=verbose)
 
     debug_print(f'Saving compressed image to {compressed_image_file}', enabled=verbose)
     cv2.imwrite(compressed_image_file, compressed_image)
@@ -71,124 +58,107 @@ def compress(raw_image_file, compressed_image_file, verbose=False):
 
 # region Voronoi cells
 
-class Cell:
 
-    edge_set = SortedSet(key=lambda cells: sum([cell.weight for cell in cells]) * Cell.compare_colours(*cells))
+class _VoronoiCell:
+    def __init__(self, colour, position, weight, neighbours):
+        self.colour = colour
+        self.position = position
+        self.weight = weight
+        self.neighbours = set(neighbours)
 
-    @staticmethod
-    def add_edge(first_cell, second_cell):
-        Cell.edge_set.add(frozenset([first_cell, second_cell]))
-        first_cell._neighbours.add(second_cell)
-        second_cell._neighbours.add(first_cell)
+    def __repr__(self):
+        representation = f'cell(c={self.colour:}, p={self.position}, w={self.weight})'
+        return representation
+
+    def __hash__(self):
+        return id(self)  # Can also use the position, but must update __eq__ accordingly
+
+    def __eq__(self, other):
+        return self is other
 
 
-    @staticmethod
-    def remove_edge(first_cell, second_cell):
-        Cell.edge_set.remove(frozenset([first_cell, second_cell]))
-        first_cell._neighbours.remove(second_cell)
-        second_cell._neighbours.remove(first_cell)
+class VoronoiGraph:
 
-    @staticmethod
-    def remove_cell(cell):
-        for neighbour in list(cell._neighbours):
-            Cell.remove_edge(cell, neighbour)
+    def __init__(self, cells=None):
+        self.cells = set(cells or [])
+        self.edge_set = SortedSet(key=lambda edge: weighted_colour_distance(*edge))
+        for cell in self.cells:
+            self.add_neighbours(cell, cell.neighbours)
 
-    @staticmethod
-    def least_difference_edge():
-        return Cell.edge_set[0]
+    def add_cell(self, cell):
+        self.cells.add(cell)
+        self.add_neighbours(cell, cell.neighbours)
 
-    @staticmethod
-    def compare_colours(first_cell, second_cell):
-        return np.linalg.norm(first_cell.colour - second_cell.colour)
+    def remove_cell(self, cell):
+        breakpoint()
+        self.cells.remove(cell)
+        self.remove_neighbours(cell, cell.neighbours)
 
-    @staticmethod
-    def merge_cells(first_cell, second_cell):
+    def add_edge(self, first_cell, second_cell):
+        """ Adds an undirected edge between two cells which are already in the graph """
+        self.edge_set.add(frozenset([first_cell, second_cell]))
+        first_cell.neighbours.add(second_cell)
+        second_cell.neighbours.add(first_cell)
 
-        try:
-            Cell.remove_edge(first_cell, second_cell)
-        except ValueError:
-            ''' Ignore this clause - we only need to disconnect the cells if they are connected '''
+    def remove_edge(self, first_cell, second_cell):
+        self.edge_set.remove(frozenset([first_cell, second_cell]))
+        first_cell.neighbours.remove(second_cell)
+        second_cell.neighbours.remove(first_cell)
+
+    def add_neighbours(self, cell, neighbours):
+        for neighbour in neighbours:
+            self.add_edge(cell, neighbour)
+
+    def remove_neighbours(self, cell, neighbours):
+        for neighbour in list(neighbours):
+            self.remove_edge(cell, neighbour)
+
+    def least_difference_edge(self):
+        return self.edge_set[0]
+
+    def merge_cells(self, first_cell, second_cell):
+
+        breakpoint()
 
         weights = [first_cell.weight, second_cell.weight]
 
         colour = weighted_vector_average([first_cell.colour, second_cell.colour], weights=weights)
         position = weighted_vector_average([first_cell.position, second_cell.position], weights=weights)
         weight = sum(weights)
-        neighbours = {*first_cell._neighbours, *second_cell._neighbours}
+        neighbours = {*first_cell.neighbours, *second_cell.neighbours}
 
-        Cell.remove_cell(first_cell)
-        Cell.remove_cell(second_cell)
+        self.remove_cell(first_cell)
+        self.remove_cell(second_cell)
 
-        new_cell = Cell(colour, position, weight, neighbours)
+        new_cell = _VoronoiCell(colour, position, weight, neighbours)
 
-        return new_cell
-
-    def __init__(self, colour, position=None, weight=1, neighbours=set()):
-        self._colour = colour
-        self.position = position
-        self.weight = weight
-        self._neighbours = set()
-        for cell in neighbours:
-            Cell.add_edge(self, cell)
-
-    def __repr__(self):
-        representation = f'cell(c={self._colour:}, p={self.position}, w={self.weight})'
-        return representation
-
-    @property
-    def colour(self):
-        return self._colour
-
-    @colour.setter
-    def colour(self, colour):
-        raise NotImplemented()  # Implementing this would require updating all neighbours and the edge set
-
-    def least_difference_neighbour(self):
-        return self._neighbours[0]
-
-    # region Aliases
-
-    @property
-    def c(self):
-        return self.colour
-
-    @c.setter
-    def c(self, colour):
-        self.colour = colour
-
-    @property
-    def p(self):
-        return self.position
-
-    @p.setter
-    def p(self, position):
-        self.position = position
-
-    @property
-    def w(self):
-        return self.weight
-
-    @w.setter
-    def w(self, weight):
-        self.weight = weight
-
-    # endregion
+        self.add_cell(new_cell)
 
 
 def image_cell_grid(image_data, verbose=False):
     debug_print(f'Loading cell grid', enabled=verbose)
     height, width, colour_dimension = image_data.shape
-    cells = [[Cell(colour=image_data[i, j], position=np.array([i, j], dtype=np.float64))
-              for j in range(width)] for i in range(height)]
-    for i, row in enumerate(cells):
+
+    # Create cells with the image data
+    cell_grid = [[
+        _VoronoiCell(
+            colour=image_data[i, j],
+            position=np.array([i, j], dtype=np.float64),
+            weight=1,
+            neighbours=[]
+        ) for j in range(width)] for i in range(height)]
+
+    # Connect the cells to their neighbours
+    graph = VoronoiGraph(cells=chain.from_iterable(cell_grid))
+    for i, row in enumerate(cell_grid):
         for j, cell in enumerate(row):
-            for neighbour in grid_neighbours(cells, i, j):
-                Cell.add_edge(cell, neighbour)
+            graph.add_neighbours(cell, grid_neighbours(cell_grid, i, j))
             print_progress(i * width + j + 1, height * width, enabled=verbose)
-    return cells
+
+    return graph
 
 
-def voronoi_fill(cells, image_data, verbose=False):
+def voronoi_fill(graph, image_data, verbose=False):
     # TODO: Add weighting
     # TODO: Add gradient-edge relations (use gradient of original image/etc) - can be done through key of edge_set
 
@@ -231,12 +201,12 @@ def voronoi_fill(cells, image_data, verbose=False):
         return [cell_neighborhoods[i][j] for i, j in nearby_neighborhood_indices(row, col, degree=degree)]
 
     debug_print('Populating cell neighborhoods', enabled=verbose)
-    for i, cell in enumerate(cells):
+    for i, cell in enumerate(graph.cells):
         # TODO: The cell belongs to the deg 0 neighborhood and ONE of the deg 1 neighborhoods, fix this code accordingly
         for neighborhood in nearby_neighborhoods(*cell.position, degree=0) + \
                             nearby_neighborhoods(*cell.position, degree=1):
             neighborhood.add(cell)
-        print_progress(i + 1, len(cells), enabled=verbose)
+        print_progress(i + 1, len(graph.cells), enabled=verbose)
 
     def closest_cell(row, col):
         neighborhood = nearby_neighborhoods(row, col, degree=1)

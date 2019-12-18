@@ -1,7 +1,9 @@
+import numpy as np
+
 import sys
 
 
-def print_progress(iteration, total, enabled=True, prefix='', suffix='', decimals=1, bar_length=70):
+def print_progress(iteration, total, enabled=True, prefix='', suffix='', decimals=1, bar_length=50):
     """
     Modified from https://gist.github.com/aubricus/f91fb55dc6ba5557fbab06119420dd6a, which was written by Aubrey Taylor
     """
@@ -44,3 +46,11 @@ def grid_neighbour_indices(row, col, height, width):
 def grid_neighbours(grid, row, col):
     indices = grid_neighbour_indices(row, col, len(grid), len(grid[0]))
     return [grid[i][j] for i, j in indices]
+
+
+def colour_distance(first_cell, second_cell):
+    return np.linalg.norm(first_cell.colour - second_cell.colour)
+
+
+def weighted_colour_distance(first_cell, second_cell):
+    return (first_cell.weight + second_cell.weight) * colour_distance(first_cell, second_cell)
