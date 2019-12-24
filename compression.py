@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-from sortedcontainers import SortedSet
 
 from itertools import chain, product
 import os
@@ -23,7 +22,7 @@ class VoronoiCell:
 class VoronoiGraph:
 
     def __init__(self, cells=None):
-        self.edges = SortedSet(key=lambda edge: utils.colour_distance(*edge))
+        self.edges = set()
         for cell in cells:
             self.add_cell(cell)
 
@@ -40,15 +39,17 @@ class VoronoiGraph:
             cell.colour = image[i, j]
             cell.neighbours = set(utils.grid_neighbours(cell_grid, i, j))
 
-        return cls(chain(*cell_grid))
+        return cls(cells=chain(*cell_grid))
 
     def add_cell(self, cell):
         for neighbour in cell.neighbours:
             self.add_edge(cell, neighbour)
+            neighbour.neighbours.add(cell)
 
     def remove_cell(self, cell):
         for neighbour in cell.neighbours:
             self.remove_edge(cell, neighbour)
+            neighbour.neighbours.remove(cell)
 
     def add_edge(self, *cells):
         self.edges.add(frozenset(cells))
@@ -63,7 +64,7 @@ class VoronoiGraph:
         position = utils.weighted_vector_average([first_cell.position, second_cell.position], weights)
         colour = utils.weighted_vector_average([first_cell.colour, second_cell.colour], weights)
         weight = first_cell.weight + second_cell.weight
-        neighbours = {*first_cell.neighbours, *second_cell.neighbours}
+        neighbours = {*first_cell.neighbours, *second_cell.neighbours} - {first_cell, second_cell}
 
         new_cell = VoronoiCell(position=position, colour=colour, weight=weight, neighbours=neighbours)
 
@@ -73,11 +74,19 @@ class VoronoiGraph:
         self.add_cell(new_cell)
 
     def least_difference_edge(self):
-        return self.edges[0]
+        return min(self.edges, key=lambda edge: utils.colour_distance(*edge))
 
+
+def compress(image, ratio=0.5):
+    graph = VoronoiGraph.image_grid(image)
+    target_n_edges = ratio * len(graph.edges)
+    while len(graph.edges) > target_n_edges:
+        first_cell, second_cell = graph.least_difference_edge()
+        graph.merge_cells(first_cell, second_cell)
+    return graph
 
 # TODO: Rasterization
-#   Map cells to pixel neighborhoods then calculate pixel's weighted-closest based on cells in the neighborhood
+# Map cells to pixel neighborhoods then calculate pixel's weighted-closest based on cells in the neighborhood
 #   Higher weighted cells should be in more neighborhoods
 #   E.g. weight=1 -> neighborhoods at a distance <= 1, weight=2 -> neighborhoods at a distance <= 2, ...,
 #     weight=w -> neighborhoods at a distance of <= w
@@ -95,6 +104,6 @@ class VoronoiGraph:
 
 if __name__ == '__main__':
 
-    test_image = cv2.imread(os.path.join('images', 'raw', 'bliss_10.png'))
-    graph = VoronoiGraph.image_grid(test_image)
+    test_image = cv2.imread(os.path.join('images', 'raw', 'bliss_100.png'))
+    compressed_data = compress(test_image)
     breakpoint()

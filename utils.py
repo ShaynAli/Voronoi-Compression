@@ -25,7 +25,6 @@ def print_progress(iteration, total, enabled=True, prefix='', suffix='', decimal
 
 
 def weighted_vector_average(vectors, weights):
-    import numpy as np
     return np.average(vectors, weights=weights, axis=0)
 
 
