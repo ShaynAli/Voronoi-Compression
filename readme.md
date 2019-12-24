@@ -1,4 +1,4 @@
-# VSA Compression
+# Voronoi Compression
 
 Uses Voronoi cells to compress and decompress an image
 

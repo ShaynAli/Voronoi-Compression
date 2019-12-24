@@ -16,4 +16,4 @@ pyvenv.cfg
 !.gitkeep
 
 # Install files
-vsa_compression.egg-info/
+voronoi_compression.egg-info/
