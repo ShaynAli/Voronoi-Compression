@@ -163,7 +163,7 @@ def main(in_image, out_image, progress=False):
 if __name__ == '__main__':
     import argparse
     
-    parser = argparse.ArgumentParser(description='Uses Voronoi cells to compress and decompress an image')
+    parser = argparse.ArgumentParser(description='Uses Voronoi cells to compress and decompress an image.')
     parser.add_argument('-p', '--progress', action='store_true',
                         help='show progress bars')
     parser.add_argument('-i', '--in-image', required=True,

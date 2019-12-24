@@ -4,8 +4,8 @@ with open('requirements.txt', 'r+') as requirements_file:
     requirements = requirements_file.read().splitlines()
 
 setup(
-    name='vsa-compression',
-    version='0.2',
+    name='voronoi-compression',
+    version='1.0',
     author='Shayaan Syed Ali',
     author_email='shayaan.syed.ali@gmail.com',
     install_requires=requirements,
