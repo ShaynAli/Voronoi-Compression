@@ -5,7 +5,7 @@ with open('requirements.txt', 'r+') as requirements_file:
 
 setup(
     name='voronoi-compression',
-    version='0.2',
+    version='1.0',
     author='Shayaan Syed Ali',
     author_email='shayaan.syed.ali@gmail.com',
     install_requires=requirements,
