@@ -47,6 +47,27 @@ def grid_neighbours(grid, row, col):
     return (grid[i][j] for i, j in indices)
 
 
+def grid_neighbour_indices_within_distance(grid, row, col, max_distance):
+
+    def within_distance(other_row, other_col):
+        return np.linalg.norm([row - other_row, col - other_col]) <= max_distance
+
+    boundary_indices = {(i, j) for i, j in grid_neighbour_indices(row, col, len(grid), len(grid[0]))
+                        if within_distance(i, j)}
+    neighbours = set()
+    while boundary_indices:
+        neighbours.update(boundary_indices)
+        boundary_indices = {(i, j) for k, l in boundary_indices for i, j in
+                            grid_neighbour_indices(k, l, len(grid), len(grid[0]))
+                            if within_distance(i, j)} - neighbours
+    return neighbours
+
+
+def grid_neighbours_within_distance(grid, row, col, max_distance):
+    indices = grid_neighbour_indices_within_distance(grid, row, col, max_distance)
+    return (grid[i][j] for i, j in indices)
+
+
 def colour_distance(first_cell, second_cell):
     return np.linalg.norm(first_cell.colour - second_cell.colour)
 
