@@ -1,26 +1,20 @@
 import numpy as np
 
 import sys
+from time import sleep
 
 
-def print_progress(iteration, total, enabled=True, prefix='', suffix='', decimals=1, bar_length=50):
-    """
-    Modified from https://gist.github.com/aubricus/f91fb55dc6ba5557fbab06119420dd6a, which was written by Aubrey Taylor
-    """
-
-    if not enabled:
+def print_progress(iteration, total, enabled=True, description='', bar_length=30):
+    
+    if not enabled:  # Simplifies calling code as it removes the need to be wrapped in an if/else
         return
-
-    str_format = "{0:." + str(decimals) + "f}"
-    percents = str_format.format(100 * (iteration / float(total)))
-    filled_length = int(round(bar_length * iteration / float(total)))
-    bar = '█' * filled_length + '|' * (bar_length - filled_length)
-
-    sys.stdout.write(f'\r{prefix} {bar}  {percents}% {suffix}')
-
-    if iteration == total:
-        sys.stdout.write(' DONE\n')
-
+    
+    filled_length = round(bar_length * iteration / total)
+    bar = filled_length * '█' + (bar_length - filled_length) * '|'
+    percentage = f'{100 * (iteration / total):4.1f}'
+    progress_end_indicator = ' DONE\n' if iteration == total else ''
+    
+    sys.stdout.write(f'\r{description:30} {bar}  {percentage}%{progress_end_indicator}')
     sys.stdout.flush()
 
 
@@ -48,10 +42,10 @@ def grid_neighbours(grid, row, col):
 
 
 def grid_neighbour_indices_within_distance(grid, row, col, max_distance):
-
+    
     def within_distance(other_row, other_col):
         return np.linalg.norm([row - other_row, col - other_col]) <= max_distance
-
+    
     boundary_indices = {(i, j) for i, j in grid_neighbour_indices(row, col, len(grid), len(grid[0]))
                         if within_distance(i, j)}
     neighbours = set()
