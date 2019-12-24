@@ -1,7 +1,6 @@
 import numpy as np
 
 import sys
-from time import sleep
 
 
 def print_progress(iteration, total, enabled=True, description='', bar_length=30):
