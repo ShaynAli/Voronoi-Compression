@@ -13,6 +13,7 @@ pyvenv.cfg
 
 # Repository files
 *.png
+images/
 !.gitkeep
 
 # Install files
