@@ -87,10 +87,10 @@ class VoronoiGraph:
         return min(self.edges, key=lambda edge: utils.weighted_colour_distance(*edge))  # Can be optimized
 
 
-def compress(image, ratio=0.5):
+def compress(image_array, ratio=0.5):
     global print_progress
     
-    graph = VoronoiGraph.image_grid(image)
+    graph = VoronoiGraph.image_grid(image_array)
     initial_n_edges = len(graph.edges)
     target_n_edges = int(ratio * initial_n_edges)
     while len(graph.edges) > target_n_edges:
@@ -151,13 +151,21 @@ def decompress(graph, neighborhood_size=10):
     return image_array
 
 
+def compress_image(image_filepath, ratio=0.5):
+    image_array = cv2.imread(image_filepath)
+    return compress(image_array, ratio=ratio)
+
+
+def decompress_image(image_filepath, image_graph, neighborhood_size=10):
+    image_array = decompress(image_graph, neighborhood_size=neighborhood_size)
+    cv2.imwrite(image_filepath, image_array)
+
+
 def main(in_image, out_image, progress=False):
     global print_progress
     print_progress = progress
-    input_image = cv2.imread(in_image)
-    compressed_graph = compress(input_image)
-    output_image = decompress(compressed_graph)
-    cv2.imwrite(out_image, output_image)
+    compressed_image_graph = compress_image(in_image)
+    decompress_image(out_image, compressed_image_graph)
 
 
 if __name__ == '__main__':
